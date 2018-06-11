@@ -64,12 +64,7 @@ new Vue({
   render: h => h(App),
   created() {
     const config = {
-      apiKey: "AIzaSyD4YmqmxMmWZEyO-eqfFjoXFG2A3Sv5K04",
-      authDomain: "inventory-management-dem-76658.firebaseapp.com",
-      databaseURL: "https://inventory-management-dem-76658.firebaseio.com",
-      projectId: "inventory-management-dem-76658",
-      storageBucket: "inventory-management-dem-76658.appspot.com",
-      messagingSenderId: "888396175761"
+      // your firebase config here
     };
 
     firebase.initializeApp(config)
