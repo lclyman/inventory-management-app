@@ -1,151 +1,210 @@
 <template>
-<v-container>
-  <v-layout row v-show="errorMessage">
+  <v-layout>
     <v-flex xs12 sm6 offset-sm3>
-      <app-alert @dismissed="onDismissed" :msg="errorMessage" type="error"/>
-    </v-flex>
-  </v-layout>
-  <v-layout row>
-    <v-flex xs12 sm6 offset-sm3>
-      <v-card>
-        <v-card-text>
-          <v-container>
-            <h2> Sign In</h2>
-            <form @submit.prevent="onSignIn">
+    <v-layout v-if="user.authLevel === '1'" row class="mt-2 mb-5">
+        <v-flex xs8 offset-xs2>
+          <h3 class="mb-2 text-md-center">{{today | formatDateFull}}</h3>
+          <router-link to="/productsSellBy">
+            <h4 class="text-md-center">There are {{productsDue.length}} items with upcoming SellBy dates.</h4>
+          </router-link>
+        </v-flex>
+      </v-layout>
 
-              <v-layout row wrap>
-                <v-flex xs12>
+      <v-layout v-else row class="mt-3 mb-5">
+        <v-flex xs8 offset-xs2>
+          <h3>{{today | formatDateFull}}</h3>
+        </v-flex>
+      </v-layout>
+      <v-card>
+        <v-layout row class="primary mt-2 white--text text-md-center">
+          <v-flex fluid>
+            <h2 class="mt-2 mb-0">Item Check In</h2> <br/>
+            <p class="demo">
+              To demo, click on Products and copy a scancode from any item missing a sell by date. <br/>Click on Check in, and enter copied scancode in this field. <br/>Or enter a random scancode and add as a new Item.
+            </p>
+          </v-flex>
+        </v-layout>
+        <v-layout row>
+          <v-flex xs12>
+            <form>
+              <v-layout row class="mt-2">
+              <v-flex xs12 sm6 offset-sm3>
+                <p class="mb-3">{{messageSuccess}}{{message}}</p>
+
+                <v-layout row v-if="scancodeExists" class="mb-2">
+                    <p>{{item.receiptAlias}}</p>
+                </v-layout>
+
                   <v-text-field
-                    name="email"
-                    label="Email"
-                    id="email"
-                    type="email"
-                    placeholder="enter: admin@admin.com"
-                    v-model="email"
+                    v-model.trim="scancode"
                     v-focus
-                    required></v-text-field>
+                    name="scancode"
+                    label="Enter scancode"
+                    id="scancode"
+                    required
+                    :onchange="getInput(this)">
+                  </v-text-field>
                 </v-flex>
               </v-layout>
 
-              <p v-show="pwd != ''" class="show" @click="switchVisibility">Show password</p>
+              <v-layout row v-if="!scancodeExists">
+                <v-flex xs12 sm6 offset-sm3>
+                </v-flex>
+              </v-layout>
 
-              <v-layout row wrap>
-                <v-flex xs12>
-                  <v-text-field
-                    name="password"
-                    label="Password"
-                    placeholder= "enter: admin123"
-                    id="pwd"
-                    :type="passwordFieldType"
-                    v-model="pwd"
-                    required></v-text-field>
+              <v-layout row class="mb-4" v-show="scancodeExists">
+                <v-flex xs12 sm6 offset-sm3 >
+                <v-dialog
+                    persistent
+                    lazy
+                    full-width
+                    width="290px"
+                  >
+                    <v-text-field
+                      slot="activator"
+                      label="Sell By date"
+                      v-model.trim="sellByDate"
+                      readonly
+                    ></v-text-field>
+                    <v-date-picker v-model.trim="sellByDate" scrollable actions>
+                      <template slot-scope="{ save, cancel }" >
+                        <v-card-actions>
+                          <v-spacer></v-spacer>
+                          <v-btn flat color="primary" @click="cancel">Cancel</v-btn>
+                          <v-btn flat color="secondary" @click="save">OK</v-btn>
+                        </v-card-actions>
+                      </template>
+                    </v-date-picker>
+                  </v-dialog>
                 </v-flex>
               </v-layout>
 
               <v-layout row no-wrap>
-                <v-flex xs12>
-                  <v-btn type="submit" :disabled="loading" :loading="loading" class="mt-4">Sign in
-                    <span slot="loader" class="custom-loader">
-                      <v-icon light>cached</v-icon>
-                    </span>
-                  </v-btn>
-
+                <v-flex xs12 sm6 offset-sm3 mb-4 wrap class="buttons">
+                  <v-btn  class="primary" :disabled="!formIsValid" @click="addItem('/itemCheckIn')">Save</v-btn>
+                  <v-btn  class="secondary ml-2" @click="clear">Clear</v-btn>
+                  <v-btn  v-show="addNewItem" class="info ml-2" @click="$router.push('addNewItem')">Add Item</v-btn>
                 </v-flex>
               </v-layout>
             </form>
-          </v-container>
-        </v-card-text>
+          </v-flex>
+        </v-layout>
       </v-card>
     </v-flex>
   </v-layout>
-</v-container>
 </template>
 
 <script>
+import format from "date-fns/format";
 export default {
   created() {
-    this.email = "";
-    this.password = "";
+    setTimeout(() => {
+      this.$store.commit("clearAll");
+      this.$store.commit("setError", "Your session has expired!");
+    }, 3600000);
   },
   data() {
     return {
-      email: "",
-      pwd: "",
-      passwordFieldType: "password",
-      alert: true
+      scancode: "",
+      sellByDate: "",
+      today: new Date()
     };
   },
   computed: {
-    errorMessage() {
-      return this.$store.state.fbError;
+    formIsValid() {
+      return this.sellByDate !== "";
     },
-    loading() {
-      return this.$store.state.loading;
+    user() {
+      return this.$store.state.user;
+    },
+    scancodeExists() {
+      return this.$store.state.scancodeFound;
+    },
+    messageSuccess() {
+      return this.$store.state.messageSuccess
+    },
+    item() {
+      return this.$store.state.loadedProduct
+    },
+    productsDue() {
+      return this.$store.getters.getSellBySoon;
+    },
+    message() {
+      return this.$store.state.message
+    },
+    addNewItem() {
+      return this.$store.getters.addItem
     }
   },
   methods: {
-    onSignIn() {
-      const user = {
-        email: this.email,
-        password: this.pwd
+    addItem(dest) {
+      const today = new Date();
+      const checkedInItem = {
+        id: this.item.id,
+        Brand: this.item.brandName,
+        ReceiptAlias: this.item.receiptAlias,
+        Scancode: this.scancode,
+        SellbyDate: this.sellByDate,
+        creatorId: this.$store.state.user.userId,
+        editedBy: "",
+        lastEditDate: format(today, "MMM Do YYYY h:mm A"),
+        reorderDate: ""
       };
-      this.$store.commit("setLoc", "/itemCheckin");
-      this.$store.dispatch("signIn", user);
+
+      this.$store.commit("setLoc", "/itemCheckIn");
+      this.$store.dispatch("addNewItem", checkedInItem);
+      document.getElementById("scancode").value = "";
+      this.scancode = "";
+      this.sellByDate = "";
+      document.getElementById("scancode").focus();
     },
-    onDismissed() {
-      this.$store.commit("clearError");
+    logOut() {
+      this.$store.commit("clearAll");
     },
-    switchVisibility() {
-      this.passwordFieldType =
-        this.passwordFieldType === "password" ? "text" : "password";
-      setTimeout(() => {
-        this.passwordFieldType = "password";
-      }, 1000);
+    getInput() {
+      let sc = this.scancode;
+      if (sc !== "") {
+        this.$store.dispatch("setLoadedScancode", sc);
+      }
+    },
+    clear() {
+      this.scancode = "";
+      this.$store.commit("setScancodeStatus", false);
+      this.$store.commit("clearMessage");
+      this.$store.commit("setAddItem", false)
+      this.$store.commit('clearLoadedScancode')
+      document.getElementById("scancode").value = "";
+      this.sellByDate = "";
+      document.getElementById("scancode").focus();
     }
   }
 };
 </script>
 
 <style scoped>
-.show {
-  font-size: 11px;
-  text-decoration: underline;
+
+.demo {
+  margin-top: 0;
+  color: white;
+  /* font-style: italic; */
+  font-size: 13px;
+}
+
+.buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.msg {
+  color: slategray;
+  font-size: 13px;
   margin-bottom: 10px;
 }
-.custom-loader {
-  animation: loader 1s infinite;
-  display: flex;
-}
-@-moz-keyframes loader {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-@-webkit-keyframes loader {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-@-o-keyframes loader {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes loader {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+
+p {
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: darkslategray;
 }
 </style>
