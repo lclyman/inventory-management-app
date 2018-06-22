@@ -6,7 +6,7 @@
         <span class="printable ml-4" @click="makePrintable">{{ txtPrintable }}</span>
         <span class="sc ml-5" v-show="!printable">
           <v-text-field
-            v-model="scancode"
+            v-model.trim="scancode"
             v-focus
             name="scancode"
             label="Enter scancode"
@@ -50,9 +50,9 @@
 </template>
 
 <script>
-import { store } from "../store/index";
-import computed from "../mixins/computed";
-import methods from "../mixins/methods";
+import { store } from "../store/index"
+import computed from "../mixins/computed"
+import methods from "../mixins/methods"
 import * as firebase from "firebase"
 export default {
   mixins: [computed, methods],
@@ -77,7 +77,7 @@ export default {
         },
         { text: "Scancode", value: "scancode", align: "left", sortable: false }
       ]
-    };
+    }
   },
   mounted() {
     this.$store.commit("setMessageSuccess", "")
@@ -97,43 +97,48 @@ export default {
     formIsValid() {
       return this.scancode !== ""
     },
-   loading() {
+    loading() {
       return this.$store.state.loading
     }
   },
   methods: {
     getInput() {
-      let sc = this.scancode;
+      let scancodeFound = this.$store.state.products.find(el => el.scancode === this.scancode)
+      let obj = {sc: this.scancode, scancodeFound}
       this.$store.commit("clearMessage")
       this.$store.state.loc = "/reorders"
-      this.$store.dispatch("addOrder", sc)
+      this.$store.dispatch("addOrder", obj)
       this.scancode = ""
       document.getElementById("scancode").focus()
     },
     remove(item) {
-      const str ='<b style="color:"green;">Remove ' + item.receiptAlias + " from restock list ?</b>"
+      const str =
+        '<b style="color:"green;">Remove ' +
+        item.receiptAlias +
+        " from restock list ?</b>"
       this.$dialog.confirm(str).then(() => {
         this.scancode = ""
         document.getElementById("scancode").value = ""
-        this.$store.commit('setLoc', '/reorders')
-        this.$store.dispatch("removeFromRestockList", item.id)
-      });
+        let objItem = { itemId: item.id, action: "remove" }
+        this.$store.commit("setLoc", "/reorders")
+        this.$store.dispatch("setRestockStatus", objItem)
+      })
     },
     removeAll() {
-      const str ='<b style="color:"green;">Clear the restock list ?</b>'
+      const str = '<b style="color:"green;">Clear the restock list ?</b>'
       this.$dialog.confirm(str).then(() => {
         this.scancode = ""
         document.getElementById("scancode").value = ""
-        this.$store.commit('setLoc', '/reorders')
+        this.$store.commit("setLoc", "/reorders")
         this.$store.dispatch("clearRestockList")
-      });
+      })
     },
     clear() {
       this.scancode = ""
       document.getElementById("scancode").focus()
     }
   }
-};
+}
 </script>
 
 <style scoped>
