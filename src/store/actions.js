@@ -1,9 +1,5 @@
-import Vue from 'vue';
 import * as firebase from "firebase"
 import router from '../router/index'
-import addWeeks from 'date-fns/add_weeks'
-import format from 'date-fns/format'
-import { STATUS_CODES } from 'http';
 
 export const signIn = ({commit, dispatch}, user) => {
   commit('setLoading', true)
@@ -29,7 +25,7 @@ export const getUserInfo = ({commit, dispatch}, userId) => {
   })
 };
 
-export const loadUsers = ({commit}, users) => {
+export const loadUsers = ({commit}) => {
   firebase.database().ref('users').once('value')
   .then((data) => {
     const users= []
@@ -50,7 +46,7 @@ export const loadUsers = ({commit}, users) => {
   })
 };
 
-export const loadProducts = ({commit, state}, items) => {
+export const loadProducts = ({commit, state}) => {
   firebase.database().ref('products').once('value')
   .then((data) => {
     const objProducts = data.val()
@@ -84,7 +80,7 @@ export const loadProducts = ({commit, state}, items) => {
         brandName: objProducts[key].Brand,
         receiptAlias: objProducts[key].ReceiptAlias,
         scancode: objProducts[key].Scancode,
-        sellByDate: sbd,
+        SellbyDate: sbd,
         creatorId: creatorId,
         editedBy: editedBy,
         lastEditDate: lastEditDate,
@@ -139,13 +135,12 @@ export const addNewUser = ({commit, dispatch}, currUser) => {
     })
 };
 
-export const editUser = ({commit, dispatch}, user) => {
+export const editUser = ({commit}, user) => {
   firebase.database().ref('users').child(user.userId).update(user)
   .catch(error => {
     commit('setError', error.message)
     console.log(error);
   })
-  dispatch('loadUsers')
   router.replace('/users')
 };
 
@@ -162,7 +157,7 @@ export const addNewItem = ({commit, dispatch}, newItem) => {
     })
 };
 
-export const editItem = ({commit, dispatch}, item) => {
+export const editItem = ({commit, state}, item) => {
   firebase.database().ref('products').child(item.id).update(item)
   .catch(error => {
     commit('setError', error.message)
@@ -178,44 +173,26 @@ export const reorderItem = ({commit, dispatch}, reorderedItem) => {
     console.log(error);
   })
   dispatch('loadProducts')
-  router.replace('/products')
 };
 
-export const getProductFromScancode = ({commit, getters, dispatch}, sc) => {
-  commit('setMessage', 'Searching...')
-  let scancodeFound = getters.products.find(el => el.scancode === sc)
-  if (scancodeFound) {
-      commit('setMessage', 'Enter Sell By date')
-      let product = getters.products.find(el => el.scancode === sc)
-      commit('setScancodeStatus', true)
-      commit('loadProduct', product)
-  } else {
-    commit('setMessage', 'Product not found. Put aside and do not stock!')
-    commit('setScancodeStatus', false)
-  }
-}
-
-export const setLoadedScancode = ({commit, getters, dispatch}, sc) => {
-  let scancodeFound = getters.products.find(el => el.scancode === sc)
-  if (scancodeFound) {
+export const setLoadedScancode = ({commit, state}, objItem) => {
+  if (objItem.scancodeFound) {
     commit('setMessage', 'Item found. Enter new Sell By date.')
-    let product = getters.products.find(el => el.scancode === sc)
+    let product = state.products.find(el => el.scancode === objItem.sc)
     commit('setScancodeStatus', true)
     commit('loadProduct', product)
   } else {
       commit('setMessage', 'Product not found. Add item.')
       commit('setAddItem', true)
-      commit('setLoadedScancode', sc)
+      commit('setLoadedScancode', objItem.sc)
   }
 }
 
-export const addOrder = ({commit, getters, dispatch}, sc) => {
-  let scancodeFound = getters.products.find(el => el.scancode === sc)
-  if (scancodeFound) {
-    let product = getters.products.find(el => el.scancode === sc)
-    product.onReorderList=true
-    firebase.database().ref('products').child(product.id).update(product)
-    dispatch('loadProducts')
+export const addOrder = ({commit, state, dispatch}, objItem) => {
+  if (objItem.scancodeFound) {
+    let product = state.products.find(el => el.scancode === objItem.sc)
+    let objItemRestock = { itemId: product.id, action: 'add' }
+    dispatch('setRestockStatus', objItemRestock)
     router.push('/reorders')
     commit('setMessageSuccess', 'Item added to list.')
   } else {
@@ -226,12 +203,12 @@ export const addOrder = ({commit, getters, dispatch}, sc) => {
   }
 }
 
-export const removeFromRestockList = ({commit, dispatch}, itemId ) =>{
+export const setRestockStatus = ({commit, dispatch}, objItemRestock ) => {
   commit('setLoading', true)
-  let entryRef = firebase.database().ref('products').child(itemId)
-  return entryRef.update({
-      onReorderList: false
-  })
+  let entryRef = firebase.database().ref('products').child(objItemRestock.itemId)
+  let restockStatus = true
+  objItemRestock.action === 'remove' ? restockStatus = false : ''
+  return entryRef.update({ onReorderList: restockStatus })
   .then(() => {
       console.log("Document successfully updated!");
       dispatch('loadProducts')
