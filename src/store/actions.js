@@ -157,7 +157,7 @@ export const addNewItem = ({commit, dispatch}, newItem) => {
     })
 };
 
-export const editItem = ({commit, state}, item) => {
+export const editItem = ({commit, dispatch}, item) => {
   firebase.database().ref('products').child(item.id).update(item)
   .catch(error => {
     commit('setError', error.message)
