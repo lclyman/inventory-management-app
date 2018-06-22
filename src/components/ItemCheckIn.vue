@@ -36,7 +36,7 @@
                 </v-layout>
 
                   <v-text-field
-                    v-model="scancode"
+                    v-model.trim="scancode"
                     v-focus
                     name="scancode"
                     label="Enter scancode"
@@ -63,10 +63,10 @@
                     <v-text-field
                       slot="activator"
                       label="Sell By date"
-                      v-model="sellByDate"
+                      v-model.trim="SellbyDate"
                       readonly
                     ></v-text-field>
-                    <v-date-picker v-model="sellByDate" scrollable actions>
+                    <v-date-picker v-model.trim="SellbyDate" scrollable actions>
                       <template slot-scope="{ save, cancel }" >
                         <v-card-actions>
                           <v-spacer></v-spacer>
@@ -106,13 +106,13 @@ export default {
   data() {
     return {
       scancode: "",
-      sellByDate: "",
+      SellbyDate: "",
       today: new Date()
     };
   },
   computed: {
     formIsValid() {
-      return this.sellByDate !== "";
+      return this.SellbyDate !== "";
     },
     user() {
       return this.$store.state.user;
@@ -144,7 +144,7 @@ export default {
         Brand: this.item.brandName,
         ReceiptAlias: this.item.receiptAlias,
         Scancode: this.scancode,
-        SellbyDate: this.sellByDate,
+        SellbyDate: this.SellbyDate,
         creatorId: this.$store.state.user.userId,
         editedBy: "",
         lastEditDate: format(today, "MMM Do YYYY h:mm A"),
@@ -155,16 +155,17 @@ export default {
       this.$store.dispatch("addNewItem", checkedInItem);
       document.getElementById("scancode").value = "";
       this.scancode = "";
-      this.sellByDate = "";
+      this.SellbyDate = "";
       document.getElementById("scancode").focus();
     },
     logOut() {
       this.$store.commit("clearAll");
     },
     getInput() {
-      let sc = this.scancode;
-      if (sc !== "") {
-        this.$store.dispatch("setLoadedScancode", sc);
+      if (this.scancode !== "") {
+        let scancodeFound = this.$store.state.products.find(el => el.scancode === this.scancode)
+        let objItem = {sc: this.scancode, scancodeFound}
+        this.$store.dispatch("setLoadedScancode", objItem);
       }
     },
     clear() {
@@ -174,7 +175,7 @@ export default {
       this.$store.commit("setAddItem", false)
       this.$store.commit('clearLoadedScancode')
       document.getElementById("scancode").value = "";
-      this.sellByDate = "";
+      this.SellbyDate = "";
       document.getElementById("scancode").focus();
     }
   }
