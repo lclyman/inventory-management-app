@@ -3,8 +3,7 @@
     <v-card>
       <v-card-title>
         <h3>Restock list -- {{new Date() | formatDate}}</h3>
-        <span class="printable ml-4" @click="makePrintable">{{ txtPrintable }}</span>
-        <span class="sc ml-5" v-show="!printable">
+        <span class="printable mr-3"  @click="exportPdf">Print to pdf</span>
           <v-text-field
             v-model.trim="scancode"
             v-focus
@@ -16,11 +15,9 @@
           <span class="msg">
             {{message}}{{messageSuccess}}
           </span>
-        </span>
 
         <span v-show="!printable">
           <v-btn small  class="primary ml-3 mr-3" :disabled="!formIsValid" @click="getInput">Save</v-btn>
-          <!-- <v-btn small class="secondary" @click="clear" >Clear</v-btn> -->
           <v-btn v-show="reorders.length !== 0" small class="clear" @click="removeAll" :disabled="loading" :loading="loading" >Clear list</v-btn>
         </span>
       </v-card-title>
@@ -52,7 +49,7 @@
 <script>
 import { store } from "../store/index"
 import computed from "../mixins/computed"
-import methods from "../mixins/methods"
+import methods from "../mixins/printUtils"
 import * as firebase from "firebase"
 export default {
   mixins: [computed, methods],
@@ -147,11 +144,6 @@ export default {
   margin-left: 20px;
   text-decoration: underline;
   cursor: pointer;
-}
-
-.sc {
-  margin-left: 30px;
-  width: 200px;
 }
 
 .msg {
