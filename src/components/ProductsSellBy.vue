@@ -4,7 +4,8 @@
       <v-card-title>
         <h4>Upcoming Sell By dates</h4>
         <span v-show="!$store.state.hideNav" class="printable" @click="changeView">{{txtView}}</span>
-        <span class="printable" @click="makePrintable">{{ txtPrintable }}</span>
+        <!-- <span class="printable" @click="makePrintable">{{ txtPrintable }}</span> -->
+        <span class="printable"  @click="exportPdf">Print to pdf</span>
         <v-spacer></v-spacer>
         <v-text-field
         v-show="!printable"
@@ -29,7 +30,7 @@
           <td class="text-xs-left">{{ props.item.brandName }}</td>
           <td class="text-xs-left">{{ props.item.receiptAlias }}</td>
           <td class="text-xs-left">{{ props.item.scancode }}</td>
-          <td class="text-xs-left">{{ props.item.sellByDate | formatDateShort}}</td>
+          <td class="text-xs-left">{{ props.item.SellbyDate | formatDateShort}}</td>
           <td v-show="user.authLevel==='1' && !printable" class="text-xs-left">
             <router-link :to="{name: 'editItem',
               params: { item: props.item, from: '/productsSellBy' } }"
@@ -53,12 +54,16 @@
 </template>
 
 <script>
-import { store } from "../store/index";
-import format from "date-fns/format";
-import computed from "../mixins/computed";
-import methods from "../mixins/methods";
+import { store } from "../store/index"
+import format from "date-fns/format"
+import computed from "../mixins/computed"
+import methods from "../mixins/printUtils"
 export default {
   mixins: [computed, methods],
+  created() {
+    this.txtView = "Month view"
+    this.$store.state.showMonth = false
+  },
   data() {
     return {
       today: new Date(),
@@ -67,6 +72,7 @@ export default {
       search: "",
       selected: [],
       pagination: {},
+      items: this.$store.getters.getSellBySoon,
       rppi: [
         "300",
         {
@@ -90,41 +96,66 @@ export default {
         { text: "Scancode", value: "scancode", align: "left", sortable: false },
         {
           text: "Sell By Date",
-          value: "sellByDate",
+          value: "SellbyDate",
           sortable: false,
           align: "left"
         }
       ]
-    };
+    }
   },
   computed: {
     showMonth() {
-      return this.$store.state.showMonth;
+      return this.$store.state.showMonth
     },
     user() {
-      return this.$store.state.user;
+      return this.$store.state.user
     },
     productsDue() {
       if (!this.showMonth) {
         return this.$store.getters.getSellBySoon.sort(
-          (a, b) => new Date(a.sellByDate) - new Date(b.sellByDate)
-        );
+          (a, b) => new Date(a.SellbyDate) - new Date(b.SellbyDate)
+        )
       } else {
         return this.$store.getters.getSellBySoonMonth.sort(
-          (a, b) => new Date(a.sellByDate) - new Date(b.sellByDate)
-        );
+          (a, b) => new Date(a.SellbyDate) - new Date(b.SellbyDate)
+        )
       }
     }
   },
   methods: {
+    getData() {
+      let arrItems = []
+      this.productsDue.forEach(el => {
+        arrItems.push({
+          BrandName: el.brandName,
+          ProductName: el.receiptAlias,
+          Scancode: el.scancode,
+          SellbyDate: el.SellbyDate
+        })
+      })
+      return arrItems
+    },
+    getColumns() {
+      return [
+        { title: "Brand Name", dataKey: "BrandName" },
+        { title: "Product name", dataKey: "ProductName" },
+        { title: "Scancode", dataKey: "Scancode" },
+        { title: "Sell By Date", dataKey: "SellbyDate" }
+      ]
+    },
+    exportPdf() {
+      let doc = new jsPDF("p", "pt")
+      doc.autoTable(this.getColumns(), this.getData())
+      doc.save("SellByDue.pdf")
+    },
     returnItem(item) {
-      const today = new Date();
-      let creatorId = "";
+      const today = new Date()
+      let creatorId = ""
 
       if (item.creatorId === "") {
-        creatorId = this.$store.state.user.userId;
+        creatorId = this.$store.state.user.userId
       } else {
-        creatorId = item.creatorId;
+        creatorId = item.creatorId
       }
 
       const editedItem = {
@@ -136,25 +167,25 @@ export default {
         creatorId: creatorId,
         editedBy: item.editedBy,
         lastEditDate: today
-      };
+      }
 
       const str =
         '<b style="color:"green;">Delete sell by date and return ' +
         item.receiptAlias +
-        " to the database ?</b>";
+        " to the database ?</b>"
       this.$dialog.confirm(str).then(() => {
-        this.$store.state.loc = "/productsSellBy";
-        this.$store.dispatch("editItem", editedItem);
-      });
+        this.$store.state.loc = "/productsSellBy"
+        this.$store.dispatch("editItem", editedItem)
+      })
     },
     reorder(item) {
-      const today = new Date();
-      let creatorId = "";
+      const today = new Date()
+      let creatorId = ""
 
       if (item.creatorId === "") {
-        creatorId = this.$store.state.user.userId;
+        creatorId = this.$store.state.user.userId
       } else {
-        creatorId = item.creatorId;
+        creatorId = item.creatorId
       }
 
       const reorderedItem = {
@@ -167,25 +198,25 @@ export default {
         creatorId: creatorId,
         editedBy: item.editedBy,
         lastEditDate: today
-      };
+      }
 
       const str =
         '<b style="color:"green;">Place ' +
         item.receiptAlias +
-        " on restock list?</b>";
+        " on restock list?</b>"
       this.$dialog.confirm(str).then(() => {
-        this.$store.state.loc = "/reorders";
-        this.$store.dispatch("reorderItem", reorderedItem);
-      });
+        this.$store.state.loc = "/reorders"
+        this.$store.dispatch("reorderItem", reorderedItem)
+      })
     },
     changeView() {
-      this.$store.commit("changeView");
+      this.$store.commit("changeView")
       this.txtView === "Month view"
         ? (this.txtView = "10 day view")
-        : (this.txtView = "Month view");
+        : (this.txtView = "Month view")
     }
   }
-};
+}
 </script>
 
 <style scoped>
